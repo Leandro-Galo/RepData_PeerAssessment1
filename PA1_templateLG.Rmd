@@ -1,0 +1,140 @@
+---
+title: "Reproducible Research: Peer Assessment 1"
+output: 
+  html_document:
+    keep_md: true
+---
+
+
+## Loading and preprocessing the data
+
+```{r}
+# You read your data
+Mydata <- read.csv("activity.csv", header = TRUE)
+head(Mydata)
+```
+
+
+## What is mean total number of steps taken per day?
+```{r}
+library(magrittr)
+library(dplyr)
+
+dateperDay <- Mydata %>% select(date, steps) %>% group_by(date) %>% summarize(tsteps= sum(steps)) %>%na.omit()
+hist(dateperDay$tsteps, xlab = "Total daily Steps",main="Histogram of Total Steps by day", breaks = 20)
+
+```
+
+
+```{r}
+# This is the mean of the total number of steps taken per day
+mean(dateperDay$tsteps)
+
+```
+
+
+```{r}
+#This is the mean of median of the total number of steps taken per day
+
+median(dateperDay$tsteps)
+
+```
+
+
+## What is the average daily activity pattern?
+
+```{r}
+library(ggplot2)
+
+databyinterval <- Mydata%>% select(interval, steps) %>% na.omit() %>% group_by(interval) %>% summarize(tsteps= mean(steps)) 
+ggplot(databyinterval, aes(x=interval, y=tsteps))+ geom_line()
+
+```
+
+```{r}
+databyinterval[which(databyinterval$tsteps== max(databyinterval$tsteps)),]
+```
+
+
+## Imputing missing values
+```{r}
+# List of NA's
+
+MyNAs <- sum(is.na(data))
+
+
+MyNAs
+```
+
+```{r}
+#I am using the mean for the 5 -minute interval and I am replacing all the missing values in my data. At the end, we need to check if all the NAs have been replaced
+
+
+library(magrittr)
+library(dplyr)
+
+replacewithmean <- function(x) replace(x, is.na(x), mean(x, na.rm = TRUE))
+meandata <- Mydata%>% group_by(interval) %>% mutate(steps= replacewithmean(steps))
+head(meandata)
+
+```
+
+```{r}
+
+FullSummedDataByDay <- aggregate(meandata$steps, by=list(meandata$date), sum)
+
+names(FullSummedDataByDay)[1] ="date"
+names(FullSummedDataByDay)[2] ="totalsteps"
+head(FullSummedDataByDay,15)
+
+summary(FullSummedDataByDay)
+
+# My Histogram
+
+hist(FullSummedDataByDay$totalsteps, xlab = "Steps", ylab = "Frequency", main = "Total Daily Steps", breaks = 20)
+
+```
+
+```{r}
+# We compare the means by group
+oldmean <- mean(dateperDay$tsteps, na.rm = TRUE)
+newmean <- mean(FullSummedDataByDay$totalsteps)
+
+# Old median 
+oldmean
+
+# New median
+newmean
+
+oldmedian <- median(dateperDay$tsteps, na.rm = TRUE)
+newmedian <- median(FullSummedDataByDay$totalsteps)
+
+# Old median 
+oldmedian
+
+# New median
+newmedian
+
+
+```
+
+
+
+## Are there differences in activity patterns between weekdays and weekends?
+```{r}
+meandata$date <- as.Date(meandata$date)
+meandata$weekday <- weekdays(meandata$date)
+meandata$weekend <- ifelse(meandata$weekday=="sábado" | meandata$weekday=="domingo", "Weekend", "Weekday" )
+
+library(ggplot2)
+meandataweekendweekday <- aggregate(meandata$steps , by= list(meandata$weekend, meandata$interval), na.omit(mean))
+names(meandataweekendweekday) <- c("weekend", "interval", "steps")
+
+ggplot(meandataweekendweekday, aes(x=interval, y=steps, color=weekend)) + geom_line()+
+facet_grid(weekend ~.) + xlab("Interval") + ylab("Mean of Steps") +
+    ggtitle("Comparison of Average Number of Steps in Each Interval")
+
+``` 
+
+
+
